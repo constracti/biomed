@@ -1,0 +1,18 @@
+=== BIOMED ===
+Contributors: constracti
+Requires PHP: 8
+License: GPLv3
+License URI: https://www.gnu.org/licenses/gpl-3.0.html
+
+BIOMED customizations.
+
+== Changelog ==
+
+= 0.3 =
+* Read shortcodes in background_image Avada dynamic field.
+
+= 0.2 =
+* Filter portfolio posts by categories and tags.
+
+= 0.1 =
+* Add excerpts to pages.
