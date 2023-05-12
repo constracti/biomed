@@ -8,6 +8,9 @@ BIOMED customizations.
 
 == Changelog ==
 
+= 0.3.1 =
+* Fix portfolio category filter appearance.
+
 = 0.3 =
 * Read shortcodes in background_image Avada dynamic field.
 
