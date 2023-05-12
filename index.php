@@ -4,7 +4,7 @@
  * Plugin Name: BIOMED
  * Plugin URI: https://github.com/constracti/biomed
  * Description: BIOMED customizations.
- * Version: 0.3.2
+ * Version: 0.4
  * Requires PHP: 8.0
  * Author: constracti
  * Author URI: https://github.com/constracti
@@ -73,3 +73,22 @@ add_filter( 'fusion_dynamic_override', function( array $out, $dynamic_arg, strin
 	$out[$id] = $value;
 	return $out;
 }, 10, 5 );
+
+add_action( 'pre_get_posts', function( WP_Query $query ): void {
+	if ( is_admin() )
+		return;
+	if ( !$query->is_main_query() )
+		return;
+	$cats = [
+		'people',
+		'professors',
+		'teaching-staff',
+		'researchers',
+		'phd-candidates',
+		'administrative-support',
+	];
+	if ( !$query->is_tax( 'portfolio_category', $cats ) )
+		return;
+	$query->set( 'orderby', 'title' );
+	$query->set( 'order', 'ASC' );
+} );

@@ -8,6 +8,9 @@ BIOMED customizations.
 
 == Changelog ==
 
+= 0.4 =
+* Sort posts in people archives by title.
+
 = 0.3.2 =
 * Show empty terms in portfolio category dropdown.
 
