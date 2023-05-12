@@ -4,7 +4,7 @@
  * Plugin Name: BIOMED
  * Plugin URI: https://github.com/constracti/biomed
  * Description: BIOMED customizations.
- * Version: 0.3.1
+ * Version: 0.3.2
  * Requires PHP: 8.0
  * Author: constracti
  * Author URI: https://github.com/constracti
@@ -58,6 +58,7 @@ add_action( 'restrict_manage_posts', function( string $post_type, string $which 
 		'selected' => isset( $_GET['portfolio_category'] ) ? $_GET['portfolio_category'] : 0,
 		'value_field' => 'slug',
 		'taxonomy' => 'portfolio_category',
+		'hide_empty' => FALSE,
 	] );
 }, 10, 2 );
 

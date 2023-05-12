@@ -8,6 +8,9 @@ BIOMED customizations.
 
 == Changelog ==
 
+= 0.3.2 =
+* Show empty terms in portfolio category dropdown.
+
 = 0.3.1 =
 * Fix portfolio category filter appearance.
 
