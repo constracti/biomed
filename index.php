@@ -86,6 +86,12 @@ add_action( 'pre_get_posts', function( WP_Query $query ): void {
 		'researchers',
 		'phd-candidates',
 		'administrative-support',
+		'prosopiko',
+		'kathigites',
+		'didaktiko-prosopiko',
+		'erevnites',
+		'ypopsifioi-didaktores',
+		'diacheiristiki-ypostirixi',
 	];
 	if ( !$query->is_tax( 'portfolio_category', $cats ) )
 		return;
