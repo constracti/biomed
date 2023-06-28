@@ -8,6 +8,9 @@ BIOMED customizations.
 
 == Changelog ==
 
+= 0.5 =
+* Import publications.
+
 = 0.4 =
 * Sort posts in people archives by title.
 
