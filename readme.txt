@@ -8,6 +8,9 @@ BIOMED customizations.
 
 == Changelog ==
 
+= 0.6 =
+* Exclude similar rows during import.
+
 = 0.5 =
 * Import publications.
 

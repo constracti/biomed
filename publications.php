@@ -98,6 +98,7 @@ add_action( 'biomed_tab_html_publications', function(): void {
 	$action = NULL;
 	$term = NULL;
 	$rows = NULL;
+	$exclude = FALSE;
 	if ( $_SERVER['REQUEST_METHOD'] === 'POST' ) {
 		if ( isset( $_POST['parse'] ) )
 			$action = 'parse';
@@ -113,12 +114,16 @@ add_action( 'biomed_tab_html_publications', function(): void {
 			$rows = wp_unslash( $rows );
 		$rows = mb_ereg_replace( "\r\n", "\n", $rows );
 		$rows = mb_ereg_replace( "\r", "\n", $rows );
+		if ( isset( $_POST['exclude'] ) && $_POST['exclude'] === 'on' )
+			$exclude = TRUE;
 	}
 	echo '<form method="post">' . "\n";
 	echo '<table class="form-table" role="presentation">' . "\n";
 	echo '<tbody>' . "\n";
 	echo '<tr>' . "\n";
-	echo sprintf( '<th scope="row">%s</th>', esc_html( 'Category' ) ) . "\n";
+	echo '<th scope="row">' . "\n";
+	echo sprintf( '<label for="biomed_publications_category">%s</label>', esc_html( 'Category' ) ) . "\n";
+	echo '</th>' . "\n";
 	echo '<td>' . "\n";
 	wp_dropdown_categories( [
 		'show_option_none' => '&mdash;',
@@ -127,6 +132,7 @@ add_action( 'biomed_tab_html_publications', function(): void {
 		'show_count' => TRUE,
 		'hierarchical' => TRUE,
 		'name' => 'category',
+		'id' => 'biomed_publications_category',
 		'selected' => $term?->term_id,
 		'taxonomy' => 'portfolio_category',
 		'required' => TRUE,
@@ -135,9 +141,22 @@ add_action( 'biomed_tab_html_publications', function(): void {
 	echo '</td>' . "\n";
 	echo '</tr>' . "\n";
 	echo '<tr>' . "\n";
-	echo sprintf( '<th scope="row">%s</th>', esc_html( 'Rows' ) ) . "\n";
+	echo '<th scope="row">' . "\n";
+	echo sprintf( '<label for="biomed_publications_rows">%s</label>', esc_html( 'Rows' ) ) . "\n";
+	echo '</th>' . "\n";
 	echo '<td>' . "\n";
-	echo sprintf( '<textarea name="rows" class="large-text" rows="10" required="required">%s</textarea>', esc_html( $rows ) ) . "\n";
+	echo sprintf( '<textarea name="rows" id="biomed_publications_rows" class="large-text" rows="10">%s</textarea>', esc_html( $rows ) ) . "\n";
+	echo '</td>' . "\n";
+	echo '</tr>' . "\n";
+	echo '<tr>' . "\n";
+	echo sprintf( '<th scope="row">%s</th>', esc_html( 'Testing' ) ) . "\n";
+	echo '<td>' . "\n";
+	echo '<fieldset>' . "\n";
+	echo '<label for="biomed_publications_exclude">' . "\n";
+	echo sprintf( '<input type="checkbox" name="exclude" id="biomed_publications_exclude" value="on"%s>', checked( $exclude, display: FALSE ) ) . "\n";
+	echo sprintf( '<span>%s</span>', esc_html( 'Exclude Similar Rows' ) ) . "\n";
+	echo '</label>' . "\n";
+	echo '</fieldset>' . "\n";
 	echo '</td>' . "\n";
 	echo '</tr>' . "\n";
 	echo '<tbody>' . "\n";
@@ -150,31 +169,39 @@ add_action( 'biomed_tab_html_publications', function(): void {
 	echo '</p>' . "\n";
 	echo '</form>' . "\n";
 	if ( $action === 'parse' || $action === 'import' ) {
-		$posts = get_posts( [
-			'post_type' => 'avada_portfolio',
-			'tax_query' => [
-				[
-					'taxonomy' => 'portfolio_category',
-					'field' => 'term_id',
-					'terms' => $term->term_id,
+		$posts = NULL;
+		if ( $exclude ) {
+			$posts = get_posts( [
+				'post_type' => 'avada_portfolio',
+				'tax_query' => [
+					[
+						'taxonomy' => 'portfolio_category',
+						'field' => 'term_id',
+						'terms' => $term->term_id,
+					],
 				],
-			],
-			'nopaging' => TRUE,
-		] );
+				'nopaging' => TRUE,
+			] );
+		}
 		echo '<table class="wp-list-table widefat fixed striped">' . "\n";
 		echo '<thead>' . "\n";
 		echo '<tr>' . "\n";
 		echo sprintf( '<th class="biomed_publications_title" scope="col">%s</th>', esc_html( 'Title' ) ) . "\n";
 		echo sprintf( '<th class="biomed_publications_month" scope="col">%s</th>', esc_html( 'Month' ) ) . "\n";
 		echo sprintf( '<th class="biomed_publications_year" scope="col">%s</th>', esc_html( 'Year' ) ) . "\n";
-		echo sprintf( '<th class="biomed_publications_excerpt" scope="col">%s</th>', esc_html( 'Content' ) ) . "\n";
-		echo sprintf( '<th class="biomed_publications_similarity" scope="col">%s</th>', esc_html( 'Similarity' ) ) . "\n";
+		echo sprintf( '<th class="biomed_publications_excerpt" scope="col">%s</th>', esc_html( 'Excerpt' ) ) . "\n";
+		if ( $exclude )
+			echo sprintf( '<th class="biomed_publications_similarity" scope="col">%s</th>', esc_html( 'Similarity' ) ) . "\n";
+		echo sprintf( '<th class="biomed_publications_result" scope="col">%s</th>', esc_html( 'Result' ) ) . "\n";
 		echo '</tr>' . "\n";
 		echo '</thead>' . "\n";
 		echo '<tbody>' . "\n";
 		$months = biomed_months();
 		$month_pattern = implode( '|', array_keys( $months ) );
 		foreach ( mb_split( "\n", $rows ) as $row ) {
+			$row = trim( $row );
+			if ( $row === '' )
+				continue;
 			$row .= "\n";
 			$title = NULL;
 			$month = NULL;
@@ -203,40 +230,46 @@ add_action( 'biomed_tab_html_publications', function(): void {
 			echo sprintf( '<td class="biomed_publications_month">%s</td>', esc_html( $month ?? '&mdash;' ) ) . "\n";
 			echo sprintf( '<td class="biomed_publications_year">%s</td>', esc_html( $year ?? '&mdash;' ) ) . "\n";
 			echo sprintf( '<td class="biomed_publications_excerpt">%s</td>', esc_html( $row ) ) . "\n";
-			echo '<td class="biomed_publications_similarity">' . "\n";
 			$similar = FALSE;
-			foreach ( $posts as $post ) {
-				similar_text( $row, $post->post_excerpt, $perc );
-				if ( $perc > 95 ) {
-					echo sprintf( '<a href="%s">%.0f%%</a>', get_permalink( $post ), $perc ) . "\n";
-					$similar = TRUE;
-				}
-			}
-			if ( !$similar ) {
-				if ( $action === 'import' ) {
-					$p = [];
-					if ( !is_null( $year ) ) {
-						if ( is_null( $month ) )
-							$month = 1;
-						else
-							$month = $months[$month];
-						$dt = sprintf( '%04d-%02d-01 00:00:00', $year, $month );
-						$dt = DateTime::createFromFormat( 'Y-m-d H:i:s', $dt, wp_timezone() );
-						$p['post_date'] = $dt->format( 'Y-m-d H:i:s' );
+			if ( $exclude ) {
+				echo '<td class="biomed_publications_similarity">' . "\n";
+				foreach ( $posts as $post ) {
+					similar_text( $row, $post->post_excerpt, $perc );
+					if ( $perc > 95 ) {
+						echo sprintf( '<a href="%s">%.0f%%</a>', get_permalink( $post ), $perc ) . "\n";
+						$similar = TRUE;
 					}
-					$p['post_excerpt'] = $row;
-					if ( !is_null( $title ) )
-						$p['post_title'] = $title;
-					$p['post_status'] = 'publish';
-					$p['post_type'] = 'avada_portfolio';
-					$p['tax_input'] = [
-						'portfolio_category' => [ $term->term_id ],
-					];
-					wp_insert_post( $p );
-					echo sprintf( '<span>%s</span>', esc_html( 'imported' ) ) . "\n";
-				} else {
-					echo sprintf( '<span>%s</span>', esc_html( 'none' ) ) . "\n";
 				}
+				if ( !$similar )
+					echo sprintf( '<span>%s</span>', esc_html( 'none' ) ) . "\n";
+				echo '</td>' . "\n";
+			}
+			echo '<td class="biomed_publications_result">' . "\n";
+			if ( $similar ) {
+				echo sprintf( '<span>%s</span>', esc_html( 'excluded' ) ) . "\n";
+			} elseif ( $action === 'import' ) {
+				$p = [];
+				if ( !is_null( $year ) ) {
+					if ( is_null( $month ) )
+						$month = 1;
+					else
+						$month = $months[$month];
+					$dt = sprintf( '%04d-%02d-01 00:00:00', $year, $month );
+					$dt = DateTime::createFromFormat( 'Y-m-d H:i:s', $dt, wp_timezone() );
+					$p['post_date'] = $dt->format( 'Y-m-d H:i:s' );
+				}
+				$p['post_excerpt'] = $row;
+				if ( !is_null( $title ) )
+					$p['post_title'] = $title;
+				$p['post_status'] = 'publish';
+				$p['post_type'] = 'avada_portfolio';
+				$p['tax_input'] = [
+					'portfolio_category' => [ $term->term_id ],
+				];
+				wp_insert_post( $p );
+				echo sprintf( '<span>%s</span>', esc_html( 'imported' ) ) . "\n";
+			} else {
+				echo sprintf( '<span>%s</span>', esc_html( 'ok' ) ) . "\n";
 			}
 			echo '</td>' . "\n";
 			echo '</tr>' . "\n";
@@ -247,7 +280,9 @@ add_action( 'biomed_tab_html_publications', function(): void {
 		echo '.biomed_publications_title { width: 30%; }' . "\n";
 		echo '.biomed_publications_month { width: 100px; }' . "\n";
 		echo '.biomed_publications_year { width: 50px; }' . "\n";
-		echo '.biomed_publications_similarity { width: 100px; }' . "\n";
+		if ( $exclude )
+			echo '.biomed_publications_similarity { width: 100px; }' . "\n";
+		echo '.biomed_publications_result { width: 100px; }' . "\n";
 		echo '</style>' . "\n";
 	}
 } );
