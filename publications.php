@@ -8,7 +8,7 @@ add_filter( 'biomed_tab_list', function( array $tabs ): array {
 	return $tabs;
 } );
 
-function biomed_months(): array {
+function biomed_publications_months(): array {
 	return [
 		// english
 		'January' => 1,
@@ -94,10 +94,99 @@ function biomed_months(): array {
 	];
 }
 
+function biomed_publications_parsers(): array {
+       return [
+		'publications' => [
+			'name' => 'Publications',
+			'function' => function( string $row ): array {
+				$title = NULL;
+				$month = NULL;
+				$year = NULL;
+				$m = NULL;
+				if ( mb_ereg( '“(.*?)”', $row, $m ) )
+					$title = $m[1];
+				if ( is_null( $title ) && mb_ereg( '«(.*?)»', $row, $m ) )
+					$title = $m[1];
+				if ( is_null( $title ) && mb_ereg( '"(.*?)"', $row, $m ) )
+					$title = $m[1];
+				if ( is_null( $title ) && mb_ereg( '["“”«»](.*?)["“”«»]', $row, $m ) )
+					$title = $m[1];
+				if ( mb_ereg( '[, ]\s*(' . $month_pattern . ')[, ]?\s*(\d{4})[,. \n\]]', $row, $m ) ) {
+					$month = $m[1];
+					$year = $m[2];
+				}
+				if ( is_null( $month ) && mb_ereg( '[, ]\s*(' . $month_pattern . ')[,. \n-]', $row, $m ) ) {
+					$month = $m[1];
+				}
+				if ( is_null( $year ) && mb_ereg( '[, (]\s*(19\d{2}|20\d{2})[,. \n)]', $row, $m ) ) {
+					$year = $m[1];
+				}
+				return [
+					'title' => $title,
+					'month' => $month,
+					'year' => $year,
+					'excerpt' => trim( $row ),
+				];
+			},
+		],
+		'dkoutsou_theses' => [
+			'name' => 'Koutsouris Theses',
+			'function' => function( string $row ): array {
+				$title = NULL;
+				$year = NULL;
+				$parts = mb_split( '[,.]', trim( $row ) );
+				$p = count( $parts );
+				foreach ( array_reverse( $parts ) as $part ) {
+					$words = array_filter( mb_split( '\s+', $part ) );
+					if ( count( $words ) > 3 )
+						break;
+					$p--;
+				}
+				if ( $p === 0 )
+					$p = 1;
+				$title = implode( ',', array_slice( $parts, 0, $p ) );
+				$title = mb_ereg_replace( '\s*\([^)]*\)\s*$', '', $title );
+				if ( mb_ereg( '[, ]\s*(\d{4})[.\n]', $row, $m ) ) {
+					$year = $m[1];
+				}
+				return [
+					'title' => $title,
+					'month' => NULL,
+					'year' => $year,
+					'excerpt' => trim( $row ),
+				];
+			},
+		],
+		'gmatso_theses' => [
+			'name' => 'Matsopoulos Theses',
+			'function' => function( string $row ): array {
+				$title = NULL;
+				$year = NULL;
+				if ( mb_ereg( '“(.*?)”', $row, $m ) )
+					$title = $m[1];
+				if ( is_null( $title ) && mb_ereg( '"(.*?)"', $row, $m ) )
+					$title = $m[1];
+				if ( is_null( $title ) && mb_ereg( '["“”«»‘’](.*?)["“”«»‘’]', $row, $m ) )
+					$title = $m[1];
+				if ( mb_ereg( '[, ]\s*(\d{4})\.?\n', $row, $m ) ) {
+					$year = $m[1];
+				}
+				return [
+					'title' => $title,
+					'month' => NULL,
+					'year' => $year,
+					'excerpt' => trim( $row ),
+				];
+			},
+		],
+	];
+}
+
 add_action( 'biomed_tab_html_publications', function(): void {
 	$action = NULL;
 	$term = NULL;
 	$rows = NULL;
+	$parser = NULL;
 	$exclude = FALSE;
 	if ( $_SERVER['REQUEST_METHOD'] === 'POST' ) {
 		if ( isset( $_POST['parse'] ) )
@@ -114,6 +203,10 @@ add_action( 'biomed_tab_html_publications', function(): void {
 			$rows = wp_unslash( $rows );
 		$rows = mb_ereg_replace( "\r\n", "\n", $rows );
 		$rows = mb_ereg_replace( "\r", "\n", $rows );
+		if ( isset( $_POST['parser'] ) )
+			$parser = $_POST['parser'];
+		if ( is_null( $parser ) || !array_key_exists( $parser, biomed_publications_parsers() ) )
+			wp_die( 'parser' );
 		if ( isset( $_POST['exclude'] ) && $_POST['exclude'] === 'on' )
 			$exclude = TRUE;
 	}
@@ -146,6 +239,18 @@ add_action( 'biomed_tab_html_publications', function(): void {
 	echo '</th>' . "\n";
 	echo '<td>' . "\n";
 	echo sprintf( '<textarea name="rows" id="biomed_publications_rows" class="large-text" rows="10">%s</textarea>', esc_html( $rows ) ) . "\n";
+	echo '</td>' . "\n";
+	echo '</tr>' . "\n";
+	echo '<tr>' . "\n";
+	echo '<th scope="row">' . "\n";
+	echo sprintf( '<label for="biomed_publications_parser">%s</label>', esc_html( 'Parser' ) ) . "\n";
+	echo '</th>' . "\n";
+	echo '<td>' . "\n";
+	echo '<select name="parser" id="biomed_publications_parser" required="required">' . "\n";
+	echo sprintf( '<option value="">%s</option>', esc_html( '&mdash;' ) ) . "\n";
+	foreach ( biomed_publications_parsers() as $p => $parr )
+		echo sprintf( '<option value="%s"%s>%s</option>', esc_attr( $p ), selected( $p === $parser, display: FALSE ), esc_html( $parr['name'] ) ) . "\n";
+	echo '</select>' . "\n";
 	echo '</td>' . "\n";
 	echo '</tr>' . "\n";
 	echo '<tr>' . "\n";
@@ -196,45 +301,24 @@ add_action( 'biomed_tab_html_publications', function(): void {
 		echo '</tr>' . "\n";
 		echo '</thead>' . "\n";
 		echo '<tbody>' . "\n";
-		$months = biomed_months();
+		$months = biomed_publications_months();
 		$month_pattern = implode( '|', array_keys( $months ) );
 		foreach ( mb_split( "\n", $rows ) as $row ) {
 			$row = trim( $row );
 			if ( $row === '' )
 				continue;
 			$row .= "\n";
-			$title = NULL;
-			$month = NULL;
-			$year = NULL;
-			$m = NULL;
-			if ( mb_ereg( '“(.*?)”', $row, $m ) )
-				$title = $m[1];
-			if ( is_null( $title ) && mb_ereg( '«(.*?)»', $row, $m ) )
-				$title = $m[1];
-			if ( is_null( $title ) && mb_ereg( '"(.*?)"', $row, $m ) )
-				$title = $m[1];
-			if ( is_null( $title ) && mb_ereg( '["“”«»](.*?)["“”«»]', $row, $m ) )
-				$title = $m[1];
-			if ( mb_ereg( '[, ]\s*(' . $month_pattern . ')[, ]?\s*(\d{4})[,. \n\]]', $row, $m ) ) {
-				$month = $m[1];
-				$year = $m[2];
-			}
-			if ( is_null( $month ) && mb_ereg( '[, ]\s*(' . $month_pattern . ')[,. \n-]', $row, $m ) ) {
-				$month = $m[1];
-			}
-			if ( is_null( $year ) && mb_ereg( '[, (]\s*(19\d{2}|20\d{2})[,. \n)]', $row, $m ) ) {
-				$year = $m[1];
-			}
+			$arr = biomed_publications_parsers()[$parser]['function']( $row );
 			echo '<tr>' . "\n";
-			echo sprintf( '<td class="biomed_publications_title">%s</td>', esc_html( $title ?? '&mdash;' ) ) . "\n";
-			echo sprintf( '<td class="biomed_publications_month">%s</td>', esc_html( $month ?? '&mdash;' ) ) . "\n";
-			echo sprintf( '<td class="biomed_publications_year">%s</td>', esc_html( $year ?? '&mdash;' ) ) . "\n";
-			echo sprintf( '<td class="biomed_publications_excerpt">%s</td>', esc_html( $row ) ) . "\n";
+			echo sprintf( '<td class="biomed_publications_title">%s</td>', esc_html( $arr['title'] ?? '&mdash;' ) ) . "\n";
+			echo sprintf( '<td class="biomed_publications_month">%s</td>', esc_html( $arr['month'] ?? '&mdash;' ) ) . "\n";
+			echo sprintf( '<td class="biomed_publications_year">%s</td>', esc_html( $arr['year'] ?? '&mdash;' ) ) . "\n";
+			echo sprintf( '<td class="biomed_publications_excerpt">%s</td>', esc_html( $arr['excerpt'] ) ) . "\n";
 			$similar = FALSE;
 			if ( $exclude ) {
 				echo '<td class="biomed_publications_similarity">' . "\n";
 				foreach ( $posts as $post ) {
-					similar_text( $row, $post->post_excerpt, $perc );
+					similar_text( $arr['excerpt'], $post->post_excerpt, $perc );
 					if ( $perc > 95 ) {
 						echo sprintf( '<a href="%s">%.0f%%</a>', get_permalink( $post ), $perc ) . "\n";
 						$similar = TRUE;
@@ -249,18 +333,18 @@ add_action( 'biomed_tab_html_publications', function(): void {
 				echo sprintf( '<span>%s</span>', esc_html( 'excluded' ) ) . "\n";
 			} elseif ( $action === 'import' ) {
 				$p = [];
-				if ( !is_null( $year ) ) {
-					if ( is_null( $month ) )
-						$month = 1;
+				if ( !is_null( $arr['year'] ) ) {
+					if ( is_null( $arr['month'] ) )
+						$arr['month'] = 1;
 					else
-						$month = $months[$month];
-					$dt = sprintf( '%04d-%02d-01 00:00:00', $year, $month );
+						$arr['month'] = $months[$arr['month']];
+					$dt = sprintf( '%04d-%02d-01 00:00:00', $arr['year'], $arr['month'] );
 					$dt = DateTime::createFromFormat( 'Y-m-d H:i:s', $dt, wp_timezone() );
 					$p['post_date'] = $dt->format( 'Y-m-d H:i:s' );
 				}
-				$p['post_excerpt'] = $row;
-				if ( !is_null( $title ) )
-					$p['post_title'] = $title;
+				$p['post_excerpt'] = $arr['excerpt'];
+				if ( !is_null( $arr['title'] ) )
+					$p['post_title'] = $arr['title'];
 				$p['post_status'] = 'publish';
 				$p['post_type'] = 'avada_portfolio';
 				$p['tax_input'] = [

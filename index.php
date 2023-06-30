@@ -4,7 +4,7 @@
  * Plugin Name: BIOMED
  * Plugin URI: https://github.com/constracti/biomed
  * Description: BIOMED customizations.
- * Version: 0.5
+ * Version: 0.7
  * Requires PHP: 8.0
  * Author: constracti
  * Author URI: https://github.com/constracti
