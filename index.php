@@ -4,7 +4,7 @@
  * Plugin Name: BIOMED
  * Plugin URI: https://github.com/constracti/biomed
  * Description: BIOMED customizations.
- * Version: 0.7
+ * Version: 0.8
  * Requires PHP: 8.0
  * Author: constracti
  * Author URI: https://github.com/constracti
@@ -58,30 +58,20 @@ add_action( 'admin_menu', function(): void {
 
 add_post_type_support( 'page', 'excerpt' );
 
-add_action( 'pre_get_posts', function( WP_Query $query ): void {
-	if ( is_admin() )
+// display english portfolio category archives in greek pages
+add_action( 'parse_term_query', function( WP_Term_Query $query ): void {
+	$qv = &$query->query_vars;
+	if ( !isset( $qv['taxonomy'] ) || is_array( $qv['taxonomy'] ) && !in_array( 'portfolio_category', $qv['taxonomy'], TRUE ) )
 		return;
-	if ( !$query->is_main_query() )
-		return;
-	$cats = [
-		'people',
-		'professors',
-		'teaching-staff',
-		'researchers',
-		'phd-candidates',
-		'administrative-support',
-		'prosopiko',
-		'kathigites',
-		'didaktiko-prosopiko',
-		'erevnites',
-		'ypopsifioi-didaktores',
-		'diacheiristiki-ypostirixi',
-	];
-	if ( !$query->is_tax( 'portfolio_category', $cats ) )
-		return;
-	$query->set( 'orderby', 'title' );
-	$query->set( 'order', 'ASC' );
+	$qv['lang'] = '';
 } );
+
+// use english post cards in greek pages
+add_action( 'parse_query', function( WP_Query $query ): void {
+	if ( !$query->is_tax( 'element_category', 'post_cards' ) )
+		return;
+	$query->set( 'lang', '' );
+}, 5 ); // priority 5 to precede polylang/frontend parse_query
 
 // https://www.biomed.ntua.gr/new/wp-admin/admin-ajax.php?action=biomed
 add_action( 'wp_ajax_biomed', function(): void {
