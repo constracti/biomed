@@ -8,6 +8,9 @@ BIOMED customizations.
 
 == Changelog ==
 
+= 1.0 =
+* Tidy up sitemap.
+
 = 0.10 =
 * Search for posts of any language.
 

@@ -4,7 +4,7 @@
  * Plugin Name: BIOMED
  * Plugin URI: https://github.com/constracti/biomed
  * Description: BIOMED customizations.
- * Version: 0.10
+ * Version: 1.0
  * Requires PHP: 8.0
  * Author: constracti
  * Author URI: https://github.com/constracti
@@ -92,6 +92,31 @@ add_filter( 'fusion_breadcrumbs_defaults', function( array $defaults ): array {
 	$title = get_the_title( $home );
 	$defaults['home_label'] = $title;
 	return $defaults;
+} );
+
+// tidy up sitemap
+add_filter( 'wp_sitemaps_add_provider', function(  mixed $provider, string $name ):  mixed {
+	if ( $name === 'users' )
+		return NULL;
+	return $provider;
+}, 10, 2 );
+add_filter( 'wp_sitemaps_post_types', function( array $post_types ): array {
+	if ( isset( $post_types['avada_portfolio'] ) )
+		unset( $post_types['avada_portfolio'] );
+	return $post_types;
+} );
+add_filter( 'wp_sitemaps_taxonomies', function( array $taxonomies ): array {
+	if ( isset( $taxonomies['post_format'] ) )
+		unset( $taxonomies['post_format'] );
+	if ( isset( $taxonomies['post_tag'] ) )
+		unset( $taxonomies['post_tag'] );
+	if ( isset( $taxonomies['portfolio_category'] ) )
+		unset( $taxonomies['portfolio_category'] );
+	if ( isset( $taxonomies['portfolio_skills'] ) )
+		unset( $taxonomies['portfolio_skills'] );
+	if ( isset( $taxonomies['portfolio_tags'] ) )
+		unset( $taxonomies['portfolio_tags'] );
+	return $taxonomies;
 } );
 
 // https://www.biomed.ntua.gr/new/wp-admin/admin-ajax.php?action=biomed
