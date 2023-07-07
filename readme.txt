@@ -8,6 +8,13 @@ BIOMED customizations.
 
 == Changelog ==
 
+= 0.9 =
+* Replace breadcrumbs home label.
+
+= 0.8 =
+* Use post cards of any language in any page.
+* Display portfolio archives using pages.
+
 = 0.7 =
 * Select parser during import.
 

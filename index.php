@@ -4,7 +4,7 @@
  * Plugin Name: BIOMED
  * Plugin URI: https://github.com/constracti/biomed
  * Description: BIOMED customizations.
- * Version: 0.8
+ * Version: 0.9
  * Requires PHP: 8.0
  * Author: constracti
  * Author URI: https://github.com/constracti
@@ -60,6 +60,8 @@ add_post_type_support( 'page', 'excerpt' );
 
 // display english portfolio category archives in greek pages
 add_action( 'parse_term_query', function( WP_Term_Query $query ): void {
+	if ( !defined( 'POLYLANG_VERSION' ) )
+		return;
 	$qv = &$query->query_vars;
 	if ( !isset( $qv['taxonomy'] ) || is_array( $qv['taxonomy'] ) && !in_array( 'portfolio_category', $qv['taxonomy'], TRUE ) )
 		return;
@@ -68,10 +70,20 @@ add_action( 'parse_term_query', function( WP_Term_Query $query ): void {
 
 // use english post cards in greek pages
 add_action( 'parse_query', function( WP_Query $query ): void {
+	if ( !defined( 'POLYLANG_VERSION' ) )
+		return;
 	if ( !$query->is_tax( 'element_category', 'post_cards' ) )
 		return;
 	$query->set( 'lang', '' );
 }, 5 ); // priority 5 to precede polylang/frontend parse_query
+
+// replace breadcrumbs home label
+add_filter( 'fusion_breadcrumbs_defaults', function( array $defaults ): array {
+	$home = get_option( 'page_on_front' );
+	$title = get_the_title( $home );
+	$defaults['home_label'] = $title;
+	return $defaults;
+} );
 
 // https://www.biomed.ntua.gr/new/wp-admin/admin-ajax.php?action=biomed
 add_action( 'wp_ajax_biomed', function(): void {

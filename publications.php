@@ -4,6 +4,8 @@ if ( !defined( 'ABSPATH' ) )
 	exit;
 
 add_filter( 'biomed_tab_list', function( array $tabs ): array {
+	if ( !defined( 'AVADA_VERSION' ) )
+		return $tabs;
 	$tabs['publications'] = 'Publications';
 	return $tabs;
 } );
