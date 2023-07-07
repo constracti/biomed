@@ -4,7 +4,7 @@
  * Plugin Name: BIOMED
  * Plugin URI: https://github.com/constracti/biomed
  * Description: BIOMED customizations.
- * Version: 0.9
+ * Version: 0.10
  * Requires PHP: 8.0
  * Author: constracti
  * Author URI: https://github.com/constracti
@@ -58,7 +58,7 @@ add_action( 'admin_menu', function(): void {
 
 add_post_type_support( 'page', 'excerpt' );
 
-// display english portfolio category archives in greek pages
+// display english portfolio category archives even in greek pages
 add_action( 'parse_term_query', function( WP_Term_Query $query ): void {
 	if ( !defined( 'POLYLANG_VERSION' ) )
 		return;
@@ -68,7 +68,7 @@ add_action( 'parse_term_query', function( WP_Term_Query $query ): void {
 	$qv['lang'] = '';
 } );
 
-// use english post cards in greek pages
+// use post cards of any language in any page
 add_action( 'parse_query', function( WP_Query $query ): void {
 	if ( !defined( 'POLYLANG_VERSION' ) )
 		return;
@@ -76,6 +76,15 @@ add_action( 'parse_query', function( WP_Query $query ): void {
 		return;
 	$query->set( 'lang', '' );
 }, 5 ); // priority 5 to precede polylang/frontend parse_query
+
+// search for posts of any language
+add_action( 'parse_query', function( WP_Query $query ): void {
+	if ( !defined( 'POLYLANG_VERSION' ) )
+		return;
+	if ( !$query->is_search() )
+		return;
+	$query->set( 'lang', '' );
+} );
 
 // replace breadcrumbs home label
 add_filter( 'fusion_breadcrumbs_defaults', function( array $defaults ): array {

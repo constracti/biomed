@@ -8,6 +8,9 @@ BIOMED customizations.
 
 == Changelog ==
 
+= 0.10 =
+* Search for posts of any language.
+
 = 0.9 =
 * Replace breadcrumbs home label.
 
