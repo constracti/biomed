@@ -7,16 +7,14 @@ add_filter( 'manage_avada_portfolio_posts_columns', function( array $post_column
 	$columns = [];
 	foreach ( $post_columns as $key => $val ) {
 		$columns[$key] = $val;
-		if ( $key === 'author' ) {
+		if ( $key === 'author' )
 			$columns['portfolio_category'] = esc_html__( 'Portfolio Categories', 'fusion-core' );
-			$columns['portfolio_tags'] = esc_html__( 'Portfolio Tags', 'fusion-core' );
-		}
 	}
 	return $columns;
 } );
 
 add_action( 'manage_avada_portfolio_posts_custom_column', function( string $column_name, int $post_id ): void {
-	if ( !in_array( $column_name, [ 'portfolio_category', 'portfolio_tags' ], TRUE ) )
+	if ( $column_name !== 'portfolio_category' )
 		return;
 	$term_list = get_the_terms( $post_id, $column_name );
 	if ( $term_list === FALSE )

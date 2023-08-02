@@ -6,11 +6,11 @@ if ( !defined( 'ABSPATH' ) )
 add_filter( 'biomed_tab_list', function( array $tabs ): array {
 	if ( !defined( 'AVADA_VERSION' ) )
 		return $tabs;
-	$tabs['publications'] = 'Publications';
+	$tabs['parser'] = 'Parser';
 	return $tabs;
 } );
 
-function biomed_publications_months(): array {
+function biomed_parser_months(): array {
 	return [
 		// english
 		'January' => 1,
@@ -96,15 +96,17 @@ function biomed_publications_months(): array {
 	];
 }
 
-function biomed_publications_parsers(): array {
+function biomed_parser_algorithms(): array {
        return [
 		'publications' => [
 			'name' => 'Publications',
 			'function' => function( string $row ): array {
+				$months = biomed_parser_months();
+				$month_pattern = implode( '|', array_keys( $months ) );
 				$title = NULL;
 				$month = NULL;
 				$year = NULL;
-				$m = NULL;
+				$date = NULL;
 				if ( mb_ereg( '“(.*?)”', $row, $m ) )
 					$title = $m[1];
 				if ( is_null( $title ) && mb_ereg( '«(.*?)»', $row, $m ) )
@@ -123,10 +125,18 @@ function biomed_publications_parsers(): array {
 				if ( is_null( $year ) && mb_ereg( '[, (]\s*(19\d{2}|20\d{2})[,. \n)]', $row, $m ) ) {
 					$year = $m[1];
 				}
+				if ( !is_null( $year ) ) {
+					if ( is_null( $month ) )
+						$month = 1;
+					else
+						$month = $months[$arr['month']];
+					$date = sprintf( '%04d-%02d-01 00:00:00', $year, $month );
+					$date = DateTime::createFromFormat( 'Y-m-d H:i:s', $date, wp_timezone() );
+					$date = $date->format( 'Y-m-d H:i:s' );
+				}
 				return [
 					'title' => $title,
-					'month' => $month,
-					'year' => $year,
+					'date' => $date,
 					'excerpt' => trim( $row ),
 				];
 			},
@@ -136,6 +146,7 @@ function biomed_publications_parsers(): array {
 			'function' => function( string $row ): array {
 				$title = NULL;
 				$year = NULL;
+				$date = NULL;
 				$parts = mb_split( '[,.]', trim( $row ) );
 				$p = count( $parts );
 				foreach ( array_reverse( $parts ) as $part ) {
@@ -151,10 +162,14 @@ function biomed_publications_parsers(): array {
 				if ( mb_ereg( '[, ]\s*(\d{4})[.\n]', $row, $m ) ) {
 					$year = $m[1];
 				}
+				if ( !is_null( $year ) ) {
+					$date = sprintf( '%04d-%01-01 00:00:00', $year );
+					$date = DateTime::createFromFormat( 'Y-m-d H:i:s', $date, wp_timezone() );
+					$date = $date->format( 'Y-m-d H:i:s' );
+				}
 				return [
 					'title' => $title,
-					'month' => NULL,
-					'year' => $year,
+					'date' => $date,
 					'excerpt' => trim( $row ),
 				];
 			},
@@ -164,6 +179,7 @@ function biomed_publications_parsers(): array {
 			'function' => function( string $row ): array {
 				$title = NULL;
 				$year = NULL;
+				$date = NULL;
 				if ( mb_ereg( '“(.*?)”', $row, $m ) )
 					$title = $m[1];
 				if ( is_null( $title ) && mb_ereg( '"(.*?)"', $row, $m ) )
@@ -173,23 +189,67 @@ function biomed_publications_parsers(): array {
 				if ( mb_ereg( '[, ]\s*(\d{4})\.?\n', $row, $m ) ) {
 					$year = $m[1];
 				}
+				if ( !is_null( $year ) ) {
+					$date = sprintf( '%04d-%01-01 00:00:00', $year );
+					$date = DateTime::createFromFormat( 'Y-m-d H:i:s', $date, wp_timezone() );
+					$date = $date->format( 'Y-m-d H:i:s' );
+				}
 				return [
 					'title' => $title,
-					'month' => NULL,
-					'year' => $year,
+					'date' => $date,
 					'excerpt' => trim( $row ),
 				];
 			},
 		],
+		'dkoutsou_projects' => [
+			'name' => 'Koutsouris Projects',
+			'function' => function( string $row ): array {
+				$title = NULL;
+				$excerpt = NULL;
+				$date = NULL;
+				$meta = [];
+				$row = mb_substr( $row, 0, mb_strlen( $row ) - 1 );
+				$parts = mb_split( '\t', $row, 5 );
+				if ( $parts[0] !== '' )
+					$title = $parts[0];
+				if ( $parts[1] !== '' )
+					$excerpt = $parts[1];
+				if ( $parts[2] !== '' )
+					$meta['project_auth'] = $parts[2];
+				if ( $parts[4] !== '' && mb_ereg( '(\d{2})/(\d{2})/(\d{2})-(\d{2})/(\d{2})/(\d{2})', $parts[4], $m ) ) {
+					if ( intval( $m[3] ) < 90 )
+						$m[3] = '20' . $m[3];
+					else
+						$m[3] = '19' . $m[3];
+					if ( intval( $m[6] ) < 90 )
+						$m[6] = '20' . $m[6];
+					else
+						$m[6] = '19' . $m[6];
+					$start = sprintf( '%04d-%02d-%02d 00:00:00', $m[3], $m[2], $m[1] );
+					$start = DateTime::createFromFormat( 'Y-m-d H:i:s', $start, wp_timezone() );
+					$end = sprintf( '%04d-%02d-%02d 00:00:00', $m[6], $m[5], $m[4] );
+					$end = DateTime::createFromFormat( 'Y-m-d H:i:s', $end, wp_timezone() );
+					$date = $start->format( 'Y-m-d H:i:s' );
+					$meta['project_date'] = $start->format( 'd/m/Y' ) . ' - ' . $end->format( 'd/m/Y' );
+				}
+				return [
+					'title' => $title,
+					'date' => $date,
+					'excerpt' => $excerpt,
+					'meta' => $meta,
+				];
+			}
+		],
 	];
 }
 
-add_action( 'biomed_tab_html_publications', function(): void {
+add_action( 'biomed_tab_html_parser', function(): void {
 	$action = NULL;
 	$term = NULL;
 	$rows = NULL;
-	$parser = NULL;
+	$algorithm = NULL;
 	$exclude = FALSE;
+	$excludeperc = NULL;
 	if ( $_SERVER['REQUEST_METHOD'] === 'POST' ) {
 		if ( isset( $_POST['parse'] ) )
 			$action = 'parse';
@@ -205,19 +265,24 @@ add_action( 'biomed_tab_html_publications', function(): void {
 			$rows = wp_unslash( $rows );
 		$rows = mb_ereg_replace( "\r\n", "\n", $rows );
 		$rows = mb_ereg_replace( "\r", "\n", $rows );
-		if ( isset( $_POST['parser'] ) )
-			$parser = $_POST['parser'];
-		if ( is_null( $parser ) || !array_key_exists( $parser, biomed_publications_parsers() ) )
-			wp_die( 'parser' );
+		if ( isset( $_POST['algorithm'] ) )
+			$algorithm = $_POST['algorithm'];
+		if ( is_null( $algorithm ) || !array_key_exists( $algorithm, biomed_parser_algorithms() ) )
+			wp_die( 'algorithm' );
 		if ( isset( $_POST['exclude'] ) && $_POST['exclude'] === 'on' )
 			$exclude = TRUE;
+		if ( !isset( $_POST['excludeperc'] ) )
+			wp_die( 'excludeperc' );
+		$excludeperc = intval( $_POST['excludeperc'] );
+		if ( strval( $excludeperc ) !== $_POST['excludeperc'] || $excludeperc < 0 || $excludeperc > 100 )
+			$excludeperc = 90;
 	}
 	echo '<form method="post">' . "\n";
 	echo '<table class="form-table" role="presentation">' . "\n";
 	echo '<tbody>' . "\n";
 	echo '<tr>' . "\n";
 	echo '<th scope="row">' . "\n";
-	echo sprintf( '<label for="biomed_publications_category">%s</label>', esc_html( 'Category' ) ) . "\n";
+	echo sprintf( '<label for="biomed_parser_category">%s</label>', esc_html( 'Category' ) ) . "\n";
 	echo '</th>' . "\n";
 	echo '<td>' . "\n";
 	wp_dropdown_categories( [
@@ -227,7 +292,7 @@ add_action( 'biomed_tab_html_publications', function(): void {
 		'show_count' => TRUE,
 		'hierarchical' => TRUE,
 		'name' => 'category',
-		'id' => 'biomed_publications_category',
+		'id' => 'biomed_parser_category',
 		'selected' => $term?->term_id,
 		'taxonomy' => 'portfolio_category',
 		'required' => TRUE,
@@ -237,21 +302,21 @@ add_action( 'biomed_tab_html_publications', function(): void {
 	echo '</tr>' . "\n";
 	echo '<tr>' . "\n";
 	echo '<th scope="row">' . "\n";
-	echo sprintf( '<label for="biomed_publications_rows">%s</label>', esc_html( 'Rows' ) ) . "\n";
+	echo sprintf( '<label for="biomed_parser_rows">%s</label>', esc_html( 'Rows' ) ) . "\n";
 	echo '</th>' . "\n";
 	echo '<td>' . "\n";
-	echo sprintf( '<textarea name="rows" id="biomed_publications_rows" class="large-text" rows="10">%s</textarea>', esc_html( $rows ) ) . "\n";
+	echo sprintf( '<textarea name="rows" id="biomed_parser_rows" class="large-text" rows="10">%s</textarea>', esc_html( $rows ) ) . "\n";
 	echo '</td>' . "\n";
 	echo '</tr>' . "\n";
 	echo '<tr>' . "\n";
 	echo '<th scope="row">' . "\n";
-	echo sprintf( '<label for="biomed_publications_parser">%s</label>', esc_html( 'Parser' ) ) . "\n";
+	echo sprintf( '<label for="biomed_parser_algorithm">%s</label>', esc_html( 'Algorithm' ) ) . "\n";
 	echo '</th>' . "\n";
 	echo '<td>' . "\n";
-	echo '<select name="parser" id="biomed_publications_parser" required="required">' . "\n";
+	echo '<select name="algorithm" id="biomed_parser_algorithm" required="required">' . "\n";
 	echo sprintf( '<option value="">%s</option>', esc_html( '&mdash;' ) ) . "\n";
-	foreach ( biomed_publications_parsers() as $p => $parr )
-		echo sprintf( '<option value="%s"%s>%s</option>', esc_attr( $p ), selected( $p === $parser, display: FALSE ), esc_html( $parr['name'] ) ) . "\n";
+	foreach ( biomed_parser_algorithms() as $p => $parr )
+		echo sprintf( '<option value="%s"%s>%s</option>', esc_attr( $p ), selected( $p === $algorithm, display: FALSE ), esc_html( $parr['name'] ) ) . "\n";
 	echo '</select>' . "\n";
 	echo '</td>' . "\n";
 	echo '</tr>' . "\n";
@@ -259,9 +324,13 @@ add_action( 'biomed_tab_html_publications', function(): void {
 	echo sprintf( '<th scope="row">%s</th>', esc_html( 'Testing' ) ) . "\n";
 	echo '<td>' . "\n";
 	echo '<fieldset>' . "\n";
-	echo '<label for="biomed_publications_exclude">' . "\n";
-	echo sprintf( '<input type="checkbox" name="exclude" id="biomed_publications_exclude" value="on"%s>', checked( $exclude, display: FALSE ) ) . "\n";
+	echo '<label for="biomed_parser_exclude">' . "\n";
+	echo sprintf( '<input type="checkbox" name="exclude" id="biomed_parser_exclude" value="on"%s>', checked( $exclude, display: FALSE ) ) . "\n";
 	echo sprintf( '<span>%s</span>', esc_html( 'Exclude Similar Rows' ) ) . "\n";
+	echo '</label>' . "\n";
+	echo '<label for="biomed_parser_excludeperc">' . "\n";
+	echo sprintf( '<span>%s</span>', esc_html( 'with Minimum Percentage' ) ) . "\n";
+	echo sprintf( '<input type="number" name="excludeperc" id="biomed_parser_excludeperc" value="%d" min="0" max="100">', $excludeperc ) . "\n";
 	echo '</label>' . "\n";
 	echo '</fieldset>' . "\n";
 	echo '</td>' . "\n";
@@ -293,35 +362,31 @@ add_action( 'biomed_tab_html_publications', function(): void {
 		echo '<table class="wp-list-table widefat fixed striped">' . "\n";
 		echo '<thead>' . "\n";
 		echo '<tr>' . "\n";
-		echo sprintf( '<th class="biomed_publications_title" scope="col">%s</th>', esc_html( 'Title' ) ) . "\n";
-		echo sprintf( '<th class="biomed_publications_month" scope="col">%s</th>', esc_html( 'Month' ) ) . "\n";
-		echo sprintf( '<th class="biomed_publications_year" scope="col">%s</th>', esc_html( 'Year' ) ) . "\n";
-		echo sprintf( '<th class="biomed_publications_excerpt" scope="col">%s</th>', esc_html( 'Excerpt' ) ) . "\n";
+		echo sprintf( '<th class="biomed_parser_title" scope="col">%s</th>', esc_html( 'Title' ) ) . "\n";
+		echo sprintf( '<th class="biomed_parser_date" scope="col">%s</th>', esc_html( 'Date' ) ) . "\n";
+		echo sprintf( '<th class="biomed_parser_excerpt" scope="col">%s</th>', esc_html( 'Excerpt' ) ) . "\n";
 		if ( $exclude )
-			echo sprintf( '<th class="biomed_publications_similarity" scope="col">%s</th>', esc_html( 'Similarity' ) ) . "\n";
-		echo sprintf( '<th class="biomed_publications_result" scope="col">%s</th>', esc_html( 'Result' ) ) . "\n";
+			echo sprintf( '<th class="biomed_parser_similarity" scope="col">%s</th>', esc_html( 'Similarity' ) ) . "\n";
+		echo sprintf( '<th class="biomed_parser_result" scope="col">%s</th>', esc_html( 'Result' ) ) . "\n";
 		echo '</tr>' . "\n";
 		echo '</thead>' . "\n";
 		echo '<tbody>' . "\n";
-		$months = biomed_publications_months();
-		$month_pattern = implode( '|', array_keys( $months ) );
 		foreach ( mb_split( "\n", $rows ) as $row ) {
-			$row = trim( $row );
-			if ( $row === '' )
+			if ( !str_ends_with( $row, "\n" ) )
+				$row .= "\n";
+			if ( $row === "\n" )
 				continue;
-			$row .= "\n";
-			$arr = biomed_publications_parsers()[$parser]['function']( $row );
+			$arr = biomed_parser_algorithms()[$algorithm]['function']( $row );
 			echo '<tr>' . "\n";
-			echo sprintf( '<td class="biomed_publications_title">%s</td>', esc_html( $arr['title'] ?? '&mdash;' ) ) . "\n";
-			echo sprintf( '<td class="biomed_publications_month">%s</td>', esc_html( $arr['month'] ?? '&mdash;' ) ) . "\n";
-			echo sprintf( '<td class="biomed_publications_year">%s</td>', esc_html( $arr['year'] ?? '&mdash;' ) ) . "\n";
-			echo sprintf( '<td class="biomed_publications_excerpt">%s</td>', esc_html( $arr['excerpt'] ) ) . "\n";
+			echo sprintf( '<td class="biomed_parser_title">%s</td>', esc_html( $arr['title'] ?? '&mdash;' ) ) . "\n";
+			echo sprintf( '<td class="biomed_parser_date">%s</td>', esc_html( isset( $arr['date'] ) ? explode( ' ', $arr['date'] )[0] : 	'&mdash;' ) ) . "\n";
+			echo sprintf( '<td class="biomed_parser_excerpt">%s</td>', esc_html( $arr['excerpt'] ?? '&mdash;' ) ) . "\n";
 			$similar = FALSE;
 			if ( $exclude ) {
-				echo '<td class="biomed_publications_similarity">' . "\n";
+				echo '<td class="biomed_parser_similarity">' . "\n";
 				foreach ( $posts as $post ) {
 					similar_text( $arr['excerpt'], $post->post_excerpt, $perc );
-					if ( $perc > 95 ) {
+					if ( $perc > $excludeperc ) {
 						echo sprintf( '<a href="%s">%.0f%%</a>', get_permalink( $post ), $perc ) . "\n";
 						$similar = TRUE;
 					}
@@ -330,23 +395,19 @@ add_action( 'biomed_tab_html_publications', function(): void {
 					echo sprintf( '<span>%s</span>', esc_html( 'none' ) ) . "\n";
 				echo '</td>' . "\n";
 			}
-			echo '<td class="biomed_publications_result">' . "\n";
+			echo '<td class="biomed_parser_result">' . "\n";
 			if ( $similar ) {
 				echo sprintf( '<span>%s</span>', esc_html( 'excluded' ) ) . "\n";
 			} elseif ( $action === 'import' ) {
 				$p = [];
-				if ( !is_null( $arr['year'] ) ) {
-					if ( is_null( $arr['month'] ) )
-						$arr['month'] = 1;
-					else
-						$arr['month'] = $months[$arr['month']];
-					$dt = sprintf( '%04d-%02d-01 00:00:00', $arr['year'], $arr['month'] );
-					$dt = DateTime::createFromFormat( 'Y-m-d H:i:s', $dt, wp_timezone() );
-					$p['post_date'] = $dt->format( 'Y-m-d H:i:s' );
-				}
-				$p['post_excerpt'] = $arr['excerpt'];
-				if ( !is_null( $arr['title'] ) )
+				if ( isset( $arr['title'] ) )
 					$p['post_title'] = $arr['title'];
+				if ( isset( $arr['date'] ) )
+					$p['post_date'] = $arr['date'];
+				if ( isset( $arr['excerpt'] ) )
+					$p['post_excerpt'] = $arr['excerpt'];
+				if ( isset( $arr['meta'] ) )
+					$p['meta_input'] = $arr['meta'];
 				$p['post_status'] = 'publish';
 				$p['post_type'] = 'avada_portfolio';
 				$p['tax_input'] = [
@@ -363,12 +424,11 @@ add_action( 'biomed_tab_html_publications', function(): void {
 		echo '</tbody>' . "\n";
 		echo '</table>' . "\n";
 		echo '<style>' . "\n";
-		echo '.biomed_publications_title { width: 30%; }' . "\n";
-		echo '.biomed_publications_month { width: 100px; }' . "\n";
-		echo '.biomed_publications_year { width: 50px; }' . "\n";
+		echo '.biomed_parser_title { width: 30%; }' . "\n";
+		echo '.biomed_parser_date { width: 100px; }' . "\n";
 		if ( $exclude )
-			echo '.biomed_publications_similarity { width: 100px; }' . "\n";
-		echo '.biomed_publications_result { width: 100px; }' . "\n";
+			echo '.biomed_parser_similarity { width: 100px; }' . "\n";
+		echo '.biomed_parser_result { width: 100px; }' . "\n";
 		echo '</style>' . "\n";
 	}
 } );
